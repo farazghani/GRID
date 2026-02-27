@@ -8,13 +8,15 @@ import { createUser } from "./services/userService.js";
 import cors from "cors";
 
 const PORT = process.env.PORT || 3000;
-const allowedOrigins = (
-  process.env.FRONTEND_ORIGIN ??
-  "http://localhost:5173,http://127.0.0.1:5173"
-)
-  .split(",")
-  .map((origin) => origin.trim())
-  .filter(Boolean);
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  ...(process.env.FRONTEND_ORIGIN ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+].filter((origin): origin is string => Boolean(origin));
 
 async function startServer() {
   // 🔥 Ensure DB + Redis are ready before accepting connections
