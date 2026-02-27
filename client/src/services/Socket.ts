@@ -1,5 +1,6 @@
 import { io , Socket } from 'socket.io-client';
-const Socketurl = "http://localhost:3000";
+const API_URL = import.meta.env.VITE_API_URL;
+const Socketurl = import.meta.env.VITE_SOCKET_URL ?? API_URL;
 
 class SocketServices{
     private socket: Socket | null = null;

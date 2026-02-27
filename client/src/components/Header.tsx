@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useGridStore } from '../store/gridstore';
 
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+
 export function Header() {
   const { stats, currentUser, tiles } = useGridStore();
   const [resetting, setResetting] = useState(false);
@@ -14,7 +16,7 @@ export function Header() {
     setResetting(true);
 
     try {
-      const response = await fetch(`http://localhost:3000/api/reset/${currentUser}`, {
+      const response = await fetch(`${API_URL}/api/reset/${currentUser}`, {
         method: 'POST',
       });
 

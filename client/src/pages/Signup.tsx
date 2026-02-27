@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useGridStore } from "../store/gridstore";
 import { useNavigate } from "react-router-dom";
 
+const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 
 export default function Signup(){
@@ -18,7 +19,7 @@ const handleClick = async(e: React.FormEvent) =>{
     e.preventDefault();
     setLoading(true);
   try{
-        const response = await fetch("http://localhost:3000/api/users" ,{
+        const response = await fetch(`${API_URL}/api/users` ,{
         method: "POST",
         headers:{
             "content-Type":"application/json",
