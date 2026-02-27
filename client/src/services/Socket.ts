@@ -1,5 +1,5 @@
 import { io , Socket } from 'socket.io-client';
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL;  
 const Socketurl = import.meta.env.VITE_SOCKET_URL ?? API_URL;
 
 class SocketServices{
