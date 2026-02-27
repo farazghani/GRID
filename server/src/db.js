@@ -2,8 +2,34 @@ import { Pool } from "pg";
 import { createClient } from "redis";
 import dotenv from "dotenv";
 dotenv.config();
+const rawPostgresUrl = process.env.POSTGRES_URL;
+const usePgSsl = process.env.PG_SSL === "true";
+const pgRejectUnauthorized = process.env.PG_SSL_REJECT_UNAUTHORIZED !== "false";
+const usePgLibpqCompat = process.env.PG_USE_LIBPQ_COMPAT === "true";
+function withPgCompat(url) {
+    try {
+        const parsed = new URL(url);
+        const sslmode = parsed.searchParams.get("sslmode");
+        const hasCompat = parsed.searchParams.has("uselibpqcompat");
+        if (sslmode === "require" && !hasCompat) {
+            parsed.searchParams.set("uselibpqcompat", "true");
+            return parsed.toString();
+        }
+    }
+    catch {
+        // Keep original URL if parsing fails.
+    }
+    return url;
+}
+const postgresUrl = rawPostgresUrl && usePgLibpqCompat ? withPgCompat(rawPostgresUrl) : rawPostgresUrl;
 export const pg = new Pool({
-    connectionString: process.env.POSTGRES_URL,
+    connectionString: postgresUrl,
+    ...(usePgSsl
+        ? {
+            // Cloud providers often require TLS; allow disabling cert validation when needed.
+            ssl: { rejectUnauthorized: pgRejectUnauthorized },
+        }
+        : {}),
 });
 const useRedisTls = process.env.REDIS_TLS === "true";
 const redisUsername = process.env.REDIS_USERNAME ?? "default";
