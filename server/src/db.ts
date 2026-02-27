@@ -1,5 +1,5 @@
 import { Pool } from "pg";
-import {Redis} from "ioredis";
+import { createClient } from "redis";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -9,11 +9,25 @@ export const pg = new Pool({
 
 });
 
-export const redis = new Redis({
-    
-    host : process.env.REDIS_HOST,
-    port : Number(process.env.REDIS_PORT),
-});
+const useRedisTls = process.env.REDIS_TLS === "true";
+const redisUsername = process.env.REDIS_USERNAME ?? "default";
+
+export const redis = process.env.REDIS_URL
+  ? createClient({
+      url: process.env.REDIS_URL,
+      ...(process.env.REDIS_PASSWORD ? { password: process.env.REDIS_PASSWORD } : {}),
+      ...(useRedisTls ? { socket: { tls: true } } : {}),
+    })
+  : createClient({
+      username: redisUsername,
+      ...(process.env.REDIS_PASSWORD ? { password: process.env.REDIS_PASSWORD } : {}),
+      socket: {
+        host: process.env.REDIS_HOST ?? "127.0.0.1",
+        port: Number(process.env.REDIS_PORT ?? 6379),
+        ...(useRedisTls ? { tls: true } : {}),
+      },
+    });
+redis.on("error", (err: unknown) => console.error("Redis Client Error", err));
 
 
 export async function initDB() {
@@ -23,6 +37,7 @@ export async function initDB() {
     console.log("✅ PostgreSQL connection successful");
 
     // Check Redis
+    await redis.connect();
     await redis.ping();
     console.log("✅ Redis connected");
   } catch (err) {

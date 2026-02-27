@@ -6,8 +6,8 @@ export async function getAllTiles() {
 }
 export async function captureTile(tileId, userId) {
     const lockKey = `tile:${tileId}`;
-    const lock = await redis.set(lockKey, userId, "NX");
-    if (!lock) {
+    const lock = await redis.set(lockKey, userId, { NX: true });
+    if (lock !== "OK") {
         return null;
     }
     try {
