@@ -1,41 +1,63 @@
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
+import cors from "cors";
+
 import { setupSocket } from "./socket.js";
 import { resetTilesForUser } from "./services/tileService.js";
 import { pg, initDB } from "./db.js";
 import { createUser } from "./services/userService.js";
-import cors from "cors";
 
 const PORT = process.env.PORT || 3000;
+
+/**
+ * 🔥 Production-safe allowed origins
+ */
 const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  ...(process.env.FRONTEND_ORIGIN ?? "")
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean),
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-].filter((origin): origin is string => Boolean(origin));
+  "https://grid-six-eta.vercel.app", // production frontend
+  "http://localhost:5173",           // local dev
+  "http://127.0.0.1:5173",           // local dev alt
+];
 
 async function startServer() {
-  // 🔥 Ensure DB + Redis are ready before accepting connections
   await initDB();
 
   const app = express();
+
   app.use(express.json());
+
+  /**
+   * 🔥 Express CORS
+   */
   app.use(
     cors({
-      origin: allowedOrigins,
+      origin: function (origin, callback) {
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        } else {
+          console.log("❌ Blocked by CORS:", origin);
+          return callback(new Error("Not allowed by CORS"));
+        }
+      },
+      credentials: true,
     })
   );
+
   const server = http.createServer(app);
 
+  /**
+   * 🔥 Socket.IO CORS
+   */
   const io = new Server(server, {
-    cors: { origin: allowedOrigins },
+    cors: {
+      origin: allowedOrigins,
+      methods: ["GET", "POST"],
+      credentials: true,
+    },
   });
 
-  // Setup WebSocket logic
   setupSocket(io);
 
   // ------------------ REST API ------------------
@@ -62,22 +84,20 @@ async function startServer() {
     res.json(rows[0]);
   });
 
-  app.post("/api/users" , async(req ,res)=>{
-   try {
-    const { username } = req.body;
+  app.post("/api/users", async (req, res) => {
+    try {
+      const { username } = req.body;
 
-    const createU = await createUser(username);
-    console.log(createU);
+      const createU = await createUser(username);
 
-    res.status(201).json({
-      message: "User created!",
-      user: createU,
-    });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Server error" });
-  }
+      res.status(201).json({
+        message: "User created!",
+        user: createU,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: "Server error" });
+    }
   });
 
   app.post("/api/reset/:userId", async (req, res) => {
@@ -85,7 +105,6 @@ async function startServer() {
 
     const clearedTiles = await resetTilesForUser(userId);
 
-    // Broadcast freed tiles
     clearedTiles.forEach((tileId) => {
       io.emit("tile_updated", {
         tileId,
@@ -103,8 +122,7 @@ async function startServer() {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🚀 Server running on port ${PORT}
 📡 WebSocket server ready
-🌐 HTTP API: http://localhost:${PORT}
-💚 Health check: http://localhost:${PORT}/health
+🌐 Production mode
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 `);
   });
